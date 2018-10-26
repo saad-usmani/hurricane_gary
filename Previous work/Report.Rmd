@@ -1,0 +1,162 @@
+---
+title: "Hurricane Hunters"
+author: "Saad Usmani, Richard Decal, Beau Britain"
+date: "December 14, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+require("data.table")
+require("ggplot2")
+require('lubridate')
+require('maps')
+require('sp')
+require('ggmap')
+require('plotly')
+require('dplyr')
+require("broom")
+```
+
+# Introduction
+
+This specific hurricane dataset was taken from Kaggle, which in turn was taken from National Hurricane Center (NHC). This dataset includes all tropical cyclones (tropical depression, tropical storm, hurricane, major hurricane) dated all the way back from 1851 to 2015. The most recent 2016 and 2017 Atlantic hurricane seasons weren't included in the data.
+
+With time series data, there are a lot of questions we could ask. We haven't done much time series analysis in either EDA or in Stats, so we didn't have too much technical expertise to do a lot of statistical analysis with the data. We decided on focusing purely on the visualization of the hurricanes, and more specifically, ask the questions:
+
+*1)* Where do hurricanes form the most throughout the Atlantic ocean? Does this change throughout time?
+
+*2)* Can we predict where a tropical cyclone could end up based on the origin of the system?
+
+*3)* Which hurricanes shared the most similar paths? Can we find patterns or trends on those hurricanes?
+
+For some of the questions, we created an R Shiny application which would allow a user to enter their desired system based on year, and find all the relevant visualizations associated with it. For the other questions, we created some very interesting plots that reveal a lot about these magnificent storms. 
+
+## Cleaning
+
+First, we imported and cleaned the data. This was crucial since this is time series data and there were things we needed to change specifically with the dates that would let R read them properly. We used the 'lubridate' package that made this process fairly easy. 
+
+```{r}
+hur <- fread(file.path("C:/Users/susmani/Documents/Year 5/Courses/Data Munging/GroupProject2/hurricane.csv"),na.strings = c("PrivacySuppressed", "NULL"))
+hur<-data.frame(hur)
+hur$Date<-ymd(hur$Date)
+hur$Latitude<-as.numeric(unlist(strsplit(hur$Latitude, split='N', fixed=TRUE)))
+hur$Longitude<-as.numeric(unlist(strsplit(hur$Longitude, split='W', fixed=TRUE)))
+hur$Longitude<-(-1)*hur$Longitude
+```
+
+In the above code, we read in the file, converted it into a data frame that would easily be read. We then used the lubridate package to change the dates and times in this set to match the format that R likes. Lastly, and probably most important for graphing geographical maps of frequency and tracks of hurricanes, we needed to change the Latitude and Longitude points into the format which ggplot2 and ggmap enjoys. 
+
+The cleaning, as you can see, is very simple, but it allows us to create some truely mesmerizing visualizations. 
+
+The structure of our clearned dataset has over 50,000 single observations of system data throughout time, with over 1,000 unique cases. There are 22 variables in this data set, but we only focus on a few: ID, Year, Date, Time, Latitude, Longitude, Minimum Pressure, Maximum Pressure.
+
+With this knowledge, we can continue to explore - and munge. 
+
+## Basic Visualizations
+
+First, we wanted to see what some tracks we could look at. To create some gorgeous and interactive plots, we used a combination of mapbox, an online mapping tool, and plotly, an interactive plotting tool in R. To use mapbox with plotly, we need to set a system token that links to Saad's mapbox account:
+
+```{r}
+Sys.setenv('MAPBOX_TOKEN' = 'pk.eyJ1Ijoic3VzbWFuaSIsImEiOiJjamFhZnJlb3YwczdmMzJxaXlmcHJ0ZGZ2In0.vdCC--CzL7cM-XsG8yCrFw')
+```
+
+Then, we can focus on one specific hurricane, like Hurricane Katrina from 2005, and plot its track:
+
+\bigskip
+
+```{r}
+p <- plot_mapbox(mode = 'scattermapbox') %>%
+  add_markers(
+    data = hur[hur$Date >= "2005-01-01" & hur$Name=='KATRINA',], x = ~Longitude, y = ~Latitude, text=~paste('Name: ', Name, '<br>Max Wind:', Maximum.Wind, '<br>Date: ', Date), split=~Name,
+    size = ~Maximum.Wind, alpha = 0.5, color=~Date) %>%
+  layout(
+    plot_bgcolor = '#191A1A', paper_bgcolor = '#191A1A',
+    mapbox = list(style = 'dark',
+                  zoom = 3,
+                  center = list(lat = median(hur$Latitude),
+                                lon = median(hur$Longitude))),
+    margin = list(l = 0, r = 0,
+                  b = 0, t = 0,
+                  pad = 0),
+    showlegend=FALSE)
+p
+```
+
+\bigskip
+
+Looks pretty good! As maximum wind increases over time, so does to size of the dots. You can hover over the data points and get the maximum wind and date at the point in time. 
+\bigskip
+
+We can create even more complex and colorful graphs that can really grab anyone's attention. We plotted one track, but why don't we try to graph the tracks of all major hurricanes that formed in September?
+
+```{r}
+p2 <- plot_mapbox(mode = 'scattermapbox') %>%
+  add_markers(
+    data = hur[format.Date(hur$Date, "%m")=="09" & hur$Maximum.Wind>=96,], x = ~Longitude, y = ~Latitude, text=~paste('Name: ', Name, '<br>Max Wind:', Maximum.Wind, '<br>Date: ', Date), color=~ID,
+    size = ~Maximum.Wind, alpha = 0.5) %>%
+  layout(
+    plot_bgcolor = '#191A1A', paper_bgcolor = '#191A1A',
+    mapbox = list(style = 'dark',
+                  zoom = 3,
+                  center = list(lat = median(hur$Latitude),
+                                lon = median(hur$Longitude))),
+    margin = list(l = 0, r = 0,
+                  b = 0, t = 0,
+                  pad = 0),
+    showlegend=FALSE)
+p2
+```
+
+\bigskip
+
+Again, we used mapbox and plotly in conjunction to specify hurricane winds that were only above 96 knots (equal to over 110 MPH) and only in the month of September. We also colored each track by their specific ID so we can distinguish tracks better. 
+
+We can also create histograms:
+
+```{r}
+(p3 <- plot_ly(alpha = 0.6) %>%
+  add_histogram(x = hur$Maximum.Wind[format.Date(hur$Date, "%m")=="09" & hur$Maximum.Wind>0], name = 'September', autobinx=TRUE) %>%
+  add_histogram(x = hur$Maximum.Wind[format.Date(hur$Date, "%m")=="06" & hur$Maximum.Wind>0], name = 'June') %>%
+  add_histogram(x = hur$Maximum.Wind[format.Date(hur$Date, "%m")=="07" & hur$Maximum.Wind>0], name = 'July') %>%
+  add_histogram(x = hur$Maximum.Wind[format.Date(hur$Date, "%m")=="08" & hur$Maximum.Wind>0], name = 'August') %>%
+  layout(barmode = "stack"))
+```
+
+*Insert heat maps down here and explanation here*
+
+### Minimum Pressure and Maximum Wind Relationship
+
+Here, we look at Maximum Wind vs. Minimum Pressure:
+
+```{r}
+hur_new<-hur[hur$Maximum.Wind>0 & hur$Minimum.Pressure>0,] #Getting rid of negative values
+
+max_winds<-data.frame(hur_new) %>%
+  group_by(ID, Minimum.Pressure) %>%
+  dplyr::summarise(Maximum.Wind = max(Maximum.Wind))
+
+
+m <- loess(Maximum.Wind ~ Minimum.Pressure, data = max_winds)
+
+(min_p <- plot_ly(max_winds, x = ~Minimum.Pressure, color = 'rgb(255, 0, 0)') %>%
+  add_markers(y = ~Maximum.Wind, text = rownames(max_winds), showlegend = FALSE, opacity = 0.5) %>%
+  add_lines(y = ~fitted(loess(Maximum.Wind ~ Minimum.Pressure)),
+            line = list(color = 'rgba(7, 164, 181, 1)'),
+            name = "Loess Smoother") %>%
+  add_ribbons(data = augment(m),
+              ymin = ~.fitted - 1.96 * .se.fit,
+              ymax = ~.fitted + 1.96 * .se.fit,
+              line = list(color = 'rgba(7, 164, 181, 0.05)'),
+              fillcolor = 'rgba(7, 164, 181, 0.2)',
+              name = "Standard Error") %>%
+  layout(xaxis = list(title = 'Minimum Pressure (mb)'),
+         yaxis = list(title = 'Maximum Winds (kt)'),
+         legend = list(x = 0.80, y = 0.90)))
+
+summary(lm(Maximum.Wind ~ Minimum.Pressure, data = max_winds))
+```
+
+Thus, we can see that the maximum winds of a tropical system are highly correlated with a lower minimum pressure. In fact, for every 1.25 mb decrease in minimum pressure, we increase by 1 kt (1.15 mph) in maximum wind for a given time.
+
+*RShiny analysis*
