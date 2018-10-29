@@ -8,6 +8,7 @@ require('plotly')
 require('dplyr')
 
 ## Cleaning the Data
+
 hur <- fread(file.path("hurricane.csv"),na.strings = c("PrivacySuppressed", "NULL"))
 hur<-data.frame(hur)
 # ggplot(hur, aes(hur$Date[hur$ID=="AL031861"], hur$`Maximum Wind`[hur$ID=="AL031861"]))
@@ -151,12 +152,22 @@ plot_mapbox(mode = 'scattermapbox') %>%
 
 p5<-plot_ly(x = format.Date(max_winds$Date, "%m"), type = "histogram")
 p6<-plot_ly(x = format.Date(max_winds$Date, "%Y"), type = "histogram")
-p7<-plot_ly(x = format.Date(max_winds$Date, "%Y%m%d"), type = "histogram")
+p7<-plot_ly(x = format.Date(max_winds$Date, "%m%d"), type = "histogram")
+
+major_winds<-data.frame(hur[hur$Maximum.Wind>96,]) %>%
+  group_by(ID) %>%
+  filter(Maximum.Wind == max(Maximum.Wind)) %>%
+  filter(row_number() <= 1) 
+
+mj.plot<-plot_ly(x = format.Date(major_winds$Date, "%Y"), type = "histogram")
+mj.plot2<-plot_ly(x = format.Date(major_winds$Date, "%m%d"), type = "histogram")
 
 ## This script looks at origin of specificed system and finds first 10 nearest tracks
 ## within +/- 1 Lat/Lng of origin. 
 
 hur_start<-hur[!duplicated(hur$ID), ] #Dataset of only origin of systems.
+
+
 
 example<-hur %>%
   filter(Date >= "2004-01-01" & Date <= "2005-02-01" & Name == 'CHARLEY',)%>%
@@ -185,13 +196,6 @@ p6 <- plot_mapbox(mode = 'scattermapbox') %>%
                   pad = 0),
     showlegend=FALSE)
 p6
-
-ggmap(atlantic_map, extent = "device") + geom_density2d(data = full, 
-                                                        aes(x = Longitude, y = Latitude), size = 0.3) + stat_density2d(data = full, 
-                                                                                                                       aes(x = Longitude, y = Latitude, fill = ..level.., alpha = ..level..), size = 0.01, 
-                                                                                                                       bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red") + 
-  scale_alpha(range = c(0, 0.3), guide = FALSE)
-
 
 ## Script for finding closest tracks. 
 
@@ -228,16 +232,15 @@ p7
 atlantic_map<-get_map(location = "puerto rico", zoom = 4)
 
 #first, plotting the points
-ggmap(atlantic_map, extent = "device") + geom_point(aes(x = Longitude, y = Latitude), colour = "red", 
+ggmap(florida, extent = "device") + geom_point(aes(x = Longitude, y = Latitude), colour = "red", 
                                                  alpha = 0.1, size = 2, data = hur_start)
 
 #second, plotting density maps across the
-ggmap(atlantic_map, extent = "device") + geom_density2d(data = hur_start, 
+ggmap(florida, extent = "device") + geom_density2d(data = hur_start, 
                                                    aes(x = Longitude, y = Latitude), size = 0.3) + stat_density2d(data = hur_start, 
                                                                                                                aes(x = Longitude, y = Latitude, fill = ..level.., alpha = ..level..), size = 0.01, 
                                                                                                                bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red") + 
   scale_alpha(range = c(0, 0.3), guide = FALSE)
-
 
 #Picking a latitude and longitude
 input<-c(28.0,-94.8)
@@ -262,4 +265,3 @@ p7 <- plot_mapbox(mode = 'scatterbox') %>%
                   b = 0, t = 0,
                   pad = 0),
     showlegend=FALSE)
-
