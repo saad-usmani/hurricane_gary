@@ -1,7 +1,7 @@
 library(data.table)
 library(tidyverse)
 library(lubridate)
-library(ggfortify)
+# library(ggfortify)
 theme_set(theme_light())
 
 hur <- fread(file.path("hurricane.csv"),na.strings = c("PrivacySuppressed", "NULL"))
@@ -28,8 +28,15 @@ ggplot(hur_3years, aes(x=Date, y=Minimum.Pressure)) +
 
 
   
+hurricanes <- hur %>%
+  mutate(year = year(hur$Date)) 
+# %>%
+  # group_by(year, ID) 
+  
+  
+hurricanes %>% count(year,ID) %>% sum(ID)
 
-
+hurricanes %>% filter(Status == 'HU') %>% group_by(year, ID)
 
 
 
