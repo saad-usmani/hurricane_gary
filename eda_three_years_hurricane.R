@@ -13,6 +13,7 @@ hur$Latitude<-as.numeric(unlist(strsplit(hur$Latitude, split='N', fixed=TRUE)))
 hur$Longitude<-as.numeric(unlist(strsplit(hur$Longitude, split='W', fixed=TRUE)))
 hur$Longitude<-(-1)*hur$Longitude
 
+
 hur_3years <- hur %>% 
   filter(year(Date) %in% c(1999, 2005, 2015)) %>%
   filter(Status == 'HU') 
