@@ -105,27 +105,31 @@ mean_params = result_params.mean()
 hurricane_irene = data[data.name == "IRENE"]
 hurricane_irene = hurricane_irene.set_index(pd.DatetimeIndex(hurricane_irene["timestamp"], freq="6H"))
 
+def clean_hur_df(df):
+    data = df.set_index(pd.DatetimeIndex(df["timestamp"], freq="6H"))
+    return data
 
-def get_mse(hurricane_irene, mean_params):
+# def get_mse(df, mean_params): # made mean_paramms global (ooh what a cardinal sin)
 
-    irene_mod = sm.tsa.statespace.SARIMAX(hurricane_irene['min_pressure_mbar'],
+    hur_mod = sm.tsa.statespace.SARIMAX(df['min_pressure_mbar'],
                                       order=(1, 1, 1),
                                       seasonal_order=(2, 1, 0, 7),
                                       enforce_stationarity=False,
                                       enforce_invertibility=False)
 
-    irene_results = irene_mod.filter(mean_params)
+    hur_results = hur_mod.filter(mean_params)
 
-    pred = irene_results.get_prediction(start=pd.to_datetime('2011-08-26'), dynamic=False)
+    first_datestamp = df.timestamp[0]
+    pred = hur_results.get_prediction(start=first_datestamp, dynamic=False)
 
     y_forecasted = pred.predicted_mean
-    # y_forecasted = irene_results.get_prediction(start=pd.to_datetime('2011-08-21'), dynamic=False)
-    y_truth = hurricane_irene['min_pressure_mbar']['2011-08-21':]
+    y_truth = df['min_pressure_mbar'][first_datestamp:]
     mse = ((y_forecasted - y_truth) ** 2).mean()
     print('The Mean Squared Error of our forecasts is {}'.format(round(mse, 2)))
 
-get_mse(hurricane_irene, params)
+# get_mse(hurricane_irene, mean_params)
+get_mse(hurricane_irene, mean_params)
 
-
-    
-   
+# TODO errors here
+data.groupby('id').apply(clean_hur_df)
+# data.groupby('id').apply(get_mse)
