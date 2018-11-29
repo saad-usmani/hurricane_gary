@@ -98,6 +98,20 @@ result_params = pd.DataFrame(result_params_list, index=hurricanes_with_valid_res
 mean_params = result_params.mean()
 
 
+# for key, group in data.groupby("id"):
+#     print(key)
+#     hurricane = group.copy()
+    
+#     # There are other observations that don't occur on a regular schedule. Ignore any tropical event with those observations.
+#     try:
+#         date_index = pd.DatetimeIndex(hurricane["timestamp"], freq="6H")
+#     except ValueError as e:
+#         print(e)
+#         continue # Reminder: "continue" means skip everything else and go to the next item in the loop
+#     hurricane = hurricane.set_index(date_index)
+    
+
+
 
 
 # subset out Irene to play with
@@ -105,12 +119,22 @@ mean_params = result_params.mean()
 hurricane_irene = data[data.name == "IRENE"]
 hurricane_irene = hurricane_irene.set_index(pd.DatetimeIndex(hurricane_irene["timestamp"], freq="6H"))
 
-def clean_hur_df(df):
-    data = df.set_index(pd.DatetimeIndex(df["timestamp"], freq="6H"))
-    return data
+def clean_hur_df(hurricane):
+    # There are other observations that don't occur on a regular schedule. Ignore any tropical event with those observations.
+    try:
+        date_index = pd.DatetimeIndex(hurricane["timestamp"], freq="6H")
+        hurricane = hurricane.set_index(date_index)
+    except ValueError as e:
+        print(e)
+        # continue 
+        # Reminder: "continue" means skip everything else and go to the next item in the loop
+    # hurricane = hurricane.set_index(date_index)
+    return hurricane
+
+
 
 # def get_mse(df, mean_params): # made mean_paramms global (ooh what a cardinal sin)
-
+def get_mse(df):
     hur_mod = sm.tsa.statespace.SARIMAX(df['min_pressure_mbar'],
                                       order=(1, 1, 1),
                                       seasonal_order=(2, 1, 0, 7),
@@ -128,7 +152,7 @@ def clean_hur_df(df):
     print('The Mean Squared Error of our forecasts is {}'.format(round(mse, 2)))
 
 # get_mse(hurricane_irene, mean_params)
-get_mse(hurricane_irene, mean_params)
+# get_mse(hurricane_irene, mean_params)
 
 # TODO errors here
 data.groupby('id').apply(clean_hur_df)
